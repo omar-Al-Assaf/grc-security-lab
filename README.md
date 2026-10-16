@@ -1,1 +1,0 @@
-# grc-security-lab
