@@ -1,0 +1,44 @@
+name: Research Gate Experiment
+on:
+  pull_request:
+    branches: ['research/gate-proof-20261016-295964/**']
+permissions:
+  contents: read
+jobs:
+  security:
+    name: Research Security Gate
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact test merge commit
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        run: |
+          git init .
+          git remote add origin "https://github.com/$SOURCE_REPOSITORY.git"
+          git fetch --depth=1 origin "$SOURCE_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          echo "RESEARCH_ANALYZED_SHA=$SOURCE_SHA"
+      - name: Install pinned research scanner
+        run: |
+          python3 -m venv "$RUNNER_TEMP/research-bandit"
+          "$RUNNER_TEMP/research-bandit/bin/pip" install bandit==1.9.4
+          "$RUNNER_TEMP/research-bandit/bin/pip" freeze
+      - name: Scan fixture without executing it
+        id: scan
+        run: |
+          set +e
+          "$RUNNER_TEMP/research-bandit/bin/bandit" -t B307 -f json -o report.json research-fixture.py
+          scanner_exit=$?
+          echo RESEARCH_REPORT_START
+          cat report.json
+          echo RESEARCH_REPORT_END
+          echo "RESEARCH_SCANNER_EXIT=$scanner_exit"
+          exit "$scanner_exit"
+  observation:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'The required scanner job is deliberately skipped in this lab case.'
